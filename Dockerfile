@@ -15,9 +15,16 @@ RUN apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=fa
 # Install necessary packages
 RUN apt-get install -y libpq-dev libzip-dev libicu-dev libpng-dev libjpeg-dev libwebp-dev libgif-dev libfreetype6-dev libcurl4-gnutls-dev libtiff5-dev ffmpeg nginx curl zip unzip gnupg supervisor
 
+# Install FreeTDS and ODBC packages
+RUN apt-get install -y freetds-common freetds-bin unixodbc freetds-dev
+
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
 RUN docker-php-ext-install -j$(nproc) intl zip pdo pdo_pgsql curl gd opcache exif
+
+# Install PDO_DBLIB for connecting to SQL Server using FreeTDS
+RUN apt-get install -y libsybdb5
+RUN docker-php-ext-install pdo_dblib
 
 # Set working directory
 WORKDIR /var/www
