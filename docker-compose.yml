@@ -1,0 +1,39 @@
+services:
+    # PHP service
+    php:
+        container_name: inventory-sender
+        build:
+            context: .
+            target: php
+        working_dir: /var/www
+        volumes:
+            -   ./:/var/www
+        ports:
+            -   ${APP_PORT:-80}:8080
+        networks:
+            -   inventory-sender
+        depends_on:
+            -   database
+        restart: always
+
+    # Database service
+    database:
+        container_name: inventory-sender-database
+        image: postgres:16.3
+        ports:
+            -  ${FORWARD_DB_PORT:-5432}:5432
+        environment:
+            - POSTGRES_DB=${DB_DATABASE}
+            - POSTGRES_USER=${DB_USERNAME}
+            - POSTGRES_PASSWORD=${DB_PASSWORD}
+        volumes:
+            - inventory-sender-database:/var/lib/postgresql/data
+        networks:
+            - inventory-sender
+        restart: always
+networks:
+    inventory-sender:
+        driver: bridge
+
+volumes:
+    inventory-sender-database: ~
