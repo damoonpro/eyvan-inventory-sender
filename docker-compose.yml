@@ -5,15 +5,19 @@ services:
         build:
             context: .
             target: php
-        working_dir: /var/www
+            args:
+                - APP_ENV=${APP_ENV}
+        environment:
+            - APP_ENV=${APP_ENV}
         volumes:
-            -   ./:/var/www
+            -   ./:/app
         ports:
             -   ${APP_PORT:-80}:8080
         networks:
             -   inventory-sender
         depends_on:
-            -   database
+            database:
+                condition: service_healthy
         restart: always
 
     # Database service
@@ -30,6 +34,11 @@ services:
             - inventory-sender-database:/var/lib/postgresql/data
         networks:
             - inventory-sender
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+            interval: 3s    # Check every x seconds
+            timeout: 2s     # Timeout if it takes longer than x  seconds
+            retries: 5      # Mark unhealthy after 3 consecutive failures
         restart: always
 networks:
     inventory-sender:

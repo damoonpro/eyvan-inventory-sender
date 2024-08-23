@@ -1,53 +1,46 @@
-FROM php:8.3-fpm AS php
+FROM php:8.3-fpm-alpine as php
 
-# Set environment variables
-ENV PHP_OPCACHE_ENABLE=1
-ENV PHP_OPCACHE_ENABLE_CLI=0
-ENV PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
-ENV PHP_OPCACHE_REVALIDATE_FREQ=1
+RUN apk add --no-cache unzip libpq-dev gnutls-dev autoconf build-base \
+    curl-dev nginx supervisor shadow bash
+RUN docker-php-ext-install pdo pdo_pgsql
+RUN pecl install pcov && docker-php-ext-enable pcov
 
-# Modify www-data user
-RUN usermod -u 1000 www-data
+WORKDIR /app
 
-# Update package list with bypass for expired release files
-RUN apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false -y
+# Setup PHP-FPM.
+COPY docker/php/php.ini $PHP_INI_DIR/
+COPY docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+COPY docker/php/conf.d/opcache.ini $PHP_INI_DIR/conf.d/opcache.ini
 
-# Install necessary packages
-RUN apt-get install -y libpq-dev libzip-dev libicu-dev libpng-dev libjpeg-dev libwebp-dev libgif-dev libfreetype6-dev libcurl4-gnutls-dev libtiff5-dev ffmpeg nginx curl zip unzip gnupg supervisor
+RUN addgroup --system --gid 1000 eyvangroup
+RUN adduser --system --ingroup eyvangroup --uid 1000 eyvanuser
 
-# Install FreeTDS and ODBC packages
-RUN apt-get install -y freetds-common freetds-bin unixodbc freetds-dev
+# Setup nginx.
+COPY docker/nginx/nginx.conf docker/nginx/fastcgi_params docker/nginx/fastcgi_fpm docker/nginx/gzip_params /etc/nginx/
+RUN mkdir -p /var/lib/nginx/tmp /var/log/nginx
+RUN /usr/sbin/nginx -t -c /etc/nginx/nginx.conf
 
-# Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
-RUN docker-php-ext-install -j$(nproc) intl zip pdo pdo_pgsql curl gd opcache exif
+# setup nginx user permissions
+RUN chown -R eyvanuser:eyvangroup /var/lib/nginx /var/log/nginx
+RUN chown -R eyvanuser:eyvangroup /usr/local/etc/php-fpm.d
 
-# Install PDO_DBLIB for connecting to SQL Server using FreeTDS
-RUN apt-get install -y libsybdb5
-RUN docker-php-ext-install pdo_dblib
-
-# Set working directory
-WORKDIR /var/www
-
-# Copy application code with appropriate ownership
-COPY --chown=www-data . .
-
-# Copy configuration files
-COPY ./docker/php/php.ini /usr/local/etc/php/php.ini
-COPY ./docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
-COPY ./docker/nginx/nginx.conf /etc/nginx/nginx.conf
-
-# Setup supervisor
+# Setup supervisor.
 COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 
-# Copy composer
-COPY --from=composer:2.3.4 /usr/bin/composer /usr/bin/composer
+# Copy application sources into the container.
+COPY --chown=eyvanuser:eyvangroup . .
+RUN chown -R eyvanuser:eyvangroup /app
+RUN chmod -R 755 /app
+RUN chmod +w /app/public
+RUN chown -R eyvanuser:eyvangroup /var /run
 
-# Set permissions
-RUN chmod -R 755 /var/www/storage
-RUN chmod -R 755 /var/www/bootstrap
+# disable root user
+RUN passwd -l root
+RUN usermod -s /usr/sbin/nologin root
 
-# Define entrypoint
-ENTRYPOINT [ "docker/entrypoint.sh" ]
+USER eyvanuser
+COPY --from=composer:2.7.6 /usr/bin/composer /usr/bin/composer
+
+ENTRYPOINT ["docker/entrypoint.sh"]
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
