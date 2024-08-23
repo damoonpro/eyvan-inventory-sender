@@ -1,32 +1,21 @@
-FROM php:8.3-fpm-alpine AS php
+FROM php:8.3-fpm AS php
 
-RUN apk add --no-cache unzip libpq-dev gnutls-dev autoconf build-base \
-    curl-dev nginx supervisor shadow bash unixodbc-dev unixodbc gnupg
+# Update package list with bypass for expired release files
+RUN apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false -y
 
-# Install Microsoft ODBC Driver for SQL Server (msodbcsql17)
-RUN set -eux; \
-    architecture="unsupported"; \
-    case $(uname -m) in \
-        x86_64) architecture="amd64" ;; \
-        arm64) architecture="arm64" ;; \
-        *) echo "Alpine architecture $(uname -m) is not currently supported." && exit 1 ;; \
-    esac; \
-    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/msodbcsql18_18.4.1.1-1_${architecture}.apk; \
-    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/mssql-tools18_18.4.1.1-1_${architecture}.apk; \
-    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/msodbcsql18_18.4.1.1-1_${architecture}.sig; \
-    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/mssql-tools18_18.4.1.1-1_${architecture}.sig; \
-    curl https://packages.microsoft.com/keys/microsoft.asc | gpg --import -; \
-    gpg --verify msodbcsql18_18.4.1.1-1_${architecture}.sig msodbcsql18_18.4.1.1-1_${architecture}.apk; \
-    gpg --verify mssql-tools18_18.4.1.1-1_${architecture}.sig mssql-tools18_18.4.1.1-1_${architecture}.apk; \
-    apk add --allow-untrusted msodbcsql18_18.4.1.1-1_${architecture}.apk; \
-    apk add --allow-untrusted mssql-tools18_18.4.1.1-1_${architecture}.apk
+# Install necessary packages
+RUN apt-get install -y libpq-dev libzip-dev libicu-dev libpng-dev libjpeg-dev libwebp-dev libgif-dev libfreetype6-dev libcurl4-gnutls-dev libtiff5-dev ffmpeg nginx curl zip unzip gnupg supervisor
 
-# Install the pdo_sqlsrv and sqlsrv PHP extensions
-RUN pecl install sqlsrv pdo_sqlsrv && \
-    docker-php-ext-enable sqlsrv pdo_sqlsrv
+# Install FreeTDS and ODBC packages
+RUN apt-get install -y freetds-common freetds-bin unixodbc freetds-dev
 
-RUN docker-php-ext-install pdo pdo_pgsql
-RUN pecl install pcov && docker-php-ext-enable pcov
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
+RUN docker-php-ext-install -j$(nproc) intl zip pdo pdo_pgsql curl gd opcache exif
+
+# Install PDO_DBLIB for connecting to SQL Server using FreeTDS
+RUN apt-get install -y libsybdb5
+RUN docker-php-ext-install pdo_dblib
 
 WORKDIR /app
 
