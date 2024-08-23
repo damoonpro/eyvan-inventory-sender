@@ -9,11 +9,13 @@ ps: ## Show containers.
 	@docker compose ps
 logs: ## Show logs
 	@docker logs ${CONTAINER_PHP}
-build: ## Build all containers for DEV
+build: ## Build all containers
+	@docker compose build
+build-c: ## Build all containers and clear cache
 	@docker compose build --no-cache
 start: ## Start all containers
 	@docker compose up --force-recreate -d
-fresh: stop destroy build start  ## Destroy & recreate all uing dev containers.
+fresh: stop destroy build-c start  ## Destroy & recreate all uing dev containers.
 stop: ## Stop all containers
 	@docker compose stop
 restart: stop start ## Restart all containers
