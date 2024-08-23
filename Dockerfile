@@ -1,12 +1,25 @@
 FROM php:8.3-fpm-alpine AS php
 
 RUN apk add --no-cache unzip libpq-dev gnutls-dev autoconf build-base \
-    curl-dev nginx supervisor shadow bash unixodbc-dev unixodbc
+    curl-dev nginx supervisor shadow bash unixodbc-dev unixodbc gnupg
 
 # Install Microsoft ODBC Driver for SQL Server (msodbcsql17)
-RUN curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/msodbcsql18_18.4.1.1-1_arm64.apk && \
-    apk add --allow-untrusted msodbcsql18_18.4.1.1-1_arm64.apk && \
-    rm msodbcsql18_18.4.1.1-1_arm64.apk
+RUN set -eux; \
+    architecture="unsupported"; \
+    case $(uname -m) in \
+        x86_64) architecture="amd64" ;; \
+        arm64) architecture="arm64" ;; \
+        *) echo "Alpine architecture $(uname -m) is not currently supported." && exit 1 ;; \
+    esac; \
+    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/msodbcsql18_18.4.1.1-1_${architecture}.apk; \
+    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/mssql-tools18_18.4.1.1-1_${architecture}.apk; \
+    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/msodbcsql18_18.4.1.1-1_${architecture}.sig; \
+    curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/mssql-tools18_18.4.1.1-1_${architecture}.sig; \
+    curl https://packages.microsoft.com/keys/microsoft.asc | gpg --import -; \
+    gpg --verify msodbcsql18_18.4.1.1-1_${architecture}.sig msodbcsql18_18.4.1.1-1_${architecture}.apk; \
+    gpg --verify mssql-tools18_18.4.1.1-1_${architecture}.sig mssql-tools18_18.4.1.1-1_${architecture}.apk; \
+    apk add --allow-untrusted msodbcsql18_18.4.1.1-1_${architecture}.apk; \
+    apk add --allow-untrusted mssql-tools18_18.4.1.1-1_${architecture}.apk
 
 # Install the pdo_sqlsrv and sqlsrv PHP extensions
 RUN pecl install sqlsrv pdo_sqlsrv && \
