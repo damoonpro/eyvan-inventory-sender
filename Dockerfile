@@ -1,17 +1,19 @@
-FROM php:8.3-fpm-alpine as php
+FROM php:8.3-fpm-alpine AS php
 
 RUN apk add --no-cache unzip libpq-dev gnutls-dev autoconf build-base \
-    curl-dev nginx supervisor shadow bash
+    curl-dev nginx supervisor shadow bash unixodbc-dev unixodbc
 
-# Install FreeTDS and ODBC packages for Alpine
-RUN apk add --no-cache freetds freetds-dev unixodbc-dev
+# Install Microsoft ODBC Driver for SQL Server (msodbcsql17)
+RUN curl -O https://download.microsoft.com/download/7/6/d/76de322a-d860-4894-9945-f0cc5d6a45f8/msodbcsql18_18.4.1.1-1_arm64.apk && \
+    apk add --allow-untrusted msodbcsql18_18.4.1.1-1_arm64.apk && \
+    rm msodbcsql18_18.4.1.1-1_arm64.apk
+
+# Install the pdo_sqlsrv and sqlsrv PHP extensions
+RUN pecl install sqlsrv pdo_sqlsrv && \
+    docker-php-ext-enable sqlsrv pdo_sqlsrv
 
 RUN docker-php-ext-install pdo pdo_pgsql
 RUN pecl install pcov && docker-php-ext-enable pcov
-
-# Install PDO_DBLIB for connecting to SQL Server using FreeTDS
-RUN docker-php-ext-configure pdo_dblib --with-libdir=/usr/lib
-RUN docker-php-ext-install pdo_dblib
 
 WORKDIR /app
 
