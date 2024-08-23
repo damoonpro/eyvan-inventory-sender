@@ -2,8 +2,16 @@ FROM php:8.3-fpm-alpine as php
 
 RUN apk add --no-cache unzip libpq-dev gnutls-dev autoconf build-base \
     curl-dev nginx supervisor shadow bash
+
+# Install FreeTDS and ODBC packages for Alpine
+RUN apk add --no-cache freetds freetds-dev unixodbc-dev
+
 RUN docker-php-ext-install pdo pdo_pgsql
 RUN pecl install pcov && docker-php-ext-enable pcov
+
+# Install PDO_DBLIB for connecting to SQL Server using FreeTDS
+RUN docker-php-ext-configure pdo_dblib --with-libdir=/usr/lib
+RUN docker-php-ext-install pdo_dblib
 
 WORKDIR /app
 
