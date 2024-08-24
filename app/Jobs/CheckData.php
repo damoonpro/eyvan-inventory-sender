@@ -30,31 +30,42 @@ class CheckData implements ShouldQueue
      */
     public function handle(): void
     {
-        $data = QueueRequest::whereSended(0)->first();
+        $processedCodes = [];
 
-        if (!$data) {
-            $this->release(now()->addSeconds(5));
-            return;
-        }
+        QueueRequest::whereSended(0)
+            ->orderBy('Amas03') // مرتب‌سازی بر اساس کد برای گروه‌بندی بهتر
+            ->chunk(50, function ($requests) use (&$processedCodes) {
+                foreach ($requests as $request) {
+                    $code = $request->Amas03;
 
-        DB::transaction(function () use ($data) {
-            $code = $data->Amas03;
+                    // اگر این کد قبلاً پردازش شده، آن را نادیده بگیر
+                    if (in_array($code, $processedCodes)) {
+                        continue;
+                    }
 
-            $data->update([
-                'Sended' => 1,
-                'SendDate' => now()
-            ]);
+                    DB::transaction(function () use ($request, $code) {
+                        $request->update([
+                            'Sended' => 1,
+                            'SendDate' => now()
+                        ]);
 
-            QueueRequest::whereAmas03($code)->whereSended(0)->delete();
+                        // حذف همه درخواست‌های مشابه با همین کد که هنوز ارسال نشده‌اند
+                        QueueRequest::whereAmas03($code)->whereSended(0)->delete();
 
-            SendData::dispatch($code);
-        }, 3);
+                        // ارسال داده
+                        SendData::dispatch($code);
+                    }, 3);
 
-        $this->release(now()->addSeconds(2));
+                    $processedCodes[] = $code;
+                }
+            });
+
+        // زمان‌بندی مجدد job برای بررسی درخواست‌های جدید
+        $this->release(now()->addSeconds(5));
     }
 
-    public function failed(\Throwable $exception)
-    {
+    // public function failed(\Throwable $exception)
+    // {
         // TODO: send notify to Admin after failed
-    }
+    // }
 }
