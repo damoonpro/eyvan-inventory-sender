@@ -72,8 +72,8 @@ class SendData implements ShouldQueue
                 ->orHavingRaw('ROUND(ISNULL(SUM(CASE WHEN Ahhvl.Ahhv01 < 30 THEN Adhvl.Adhv05 END), 0), 3) - ROUND(ISNULL(SUM(CASE WHEN Ahhvl.Ahhv01 > 30 THEN Adhvl.Adhv05 END), 0), 3) = 0')
                 ->get();
 
-            $response = Http::post('https://api.eyvancarpet.com/api/v1/json', [
-                'data' => $result
+            $response = Http::post('https://api.eyvancarpet.com/api/v1/update/json', [
+                'data' => $result->toArray()
             ]);
 
             if ($response->failed()) {
