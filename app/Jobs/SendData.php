@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\QueueRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -20,7 +21,7 @@ class SendData implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(public string $code)
+    public function __construct(public string $code, public string $queueId)
     {
         $this->onQueue('send_to_api');
     }
@@ -78,9 +79,16 @@ class SendData implements ShouldQueue
 
             if ($response->failed()) {
                 $this->release(now()->addSeconds(30));
+            } else if ($response->successful()) {
+                QueueRequest::whereQueueId($this->queueId)->update([
+                    'Sended' => 1,
+                    'SendDate' => now()
+                ]);
+
+                QueueRequest::whereAmas03($this->code)->whereSended(0)->whereOnQueue(0)->delete();
             }
-        } catch (\Throwable $th) {
-            info($th);
+        } catch (\Exception $e) {
+            info("Error sending $this->queueId: " . $e->getMessage());
             $this->release(now()->addSeconds(30));
         }
     }

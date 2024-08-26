@@ -9,6 +9,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CheckData implements ShouldQueue
 {
@@ -31,38 +32,47 @@ class CheckData implements ShouldQueue
     public function handle(): void
     {
         $processedCodes = [];
+        $perPage = 200;
+        $page = 1;
 
-        QueueRequest::whereSended(0)
-            ->orderBy('Amas03') // مرتب‌سازی بر اساس کد برای گروه‌بندی بهتر
-            ->chunk(50, function ($requests) use (&$processedCodes) {
-                foreach ($requests as $request) {
-                    $code = $request->Amas03;
+        do {
+            $requests = QueueRequest::select('QueueId', 'Amas03')
+                ->whereSended(0)
+                ->whereOnQueue(0)
+                ->orderBy('Amas03')
+                ->simplePaginate($perPage, ['*'], 'page', $page);
 
-                    // اگر این کد قبلاً پردازش شده، آن را نادیده بگیر
-                    if (in_array($code, $processedCodes)) {
-                        continue;
-                    }
+            foreach ($requests as $request) {
+                $code = $request->Amas03;
 
+                if (array_key_exists($code, $processedCodes)) {
+                    continue;
+                }
+
+                try {
                     DB::transaction(function () use ($request, $code) {
                         $request->update([
-                            'Sended' => 1,
-                            'SendDate' => now()
+                            'OnQueue' => 1
                         ]);
 
-                        // حذف همه درخواست‌های مشابه با همین کد که هنوز ارسال نشده‌اند
-                        QueueRequest::whereAmas03($code)->whereSended(0)->delete();
+                        QueueRequest::whereAmas03($code)->whereOnQueue(0)->delete();
 
-                        // ارسال داده
-                        SendData::dispatch($code);
+                        SendData::dispatch($code, $request->QueueId);
                     }, 3);
-
-                    $processedCodes[] = $code;
+                } catch (\Exception $e) {
+                    Log::error("Error processing code $code: " . $e->getMessage());
+                    continue;
                 }
-            });
 
-        // زمان‌بندی مجدد job برای بررسی درخواست‌های جدید
+                $processedCodes[$code] = true;
+            }
+
+            $page++;
+        } while ($requests->hasMorePages());
+
         $this->release(now()->addSeconds(5));
     }
+
 
     // public function failed(\Throwable $exception)
     // {
