@@ -39,7 +39,7 @@ class CheckData implements ShouldQueue
                 ->where('QueueId', '>', $lastProcessedId)
                 ->whereSended(0)
                 ->where('OnQueue', 0)
-                ->limit(200)
+                ->limit(50)
                 ->get();
 
             if ($requests->isEmpty()) {

@@ -32,6 +32,11 @@ class SendData implements ShouldQueue
     public function handle(): void
     {
         try {
+            $row = QueueRequest::where('QueueId', $this->queueId)->first();
+
+            if ($row->Sended)
+                return;
+
             $result = DB::connection('MaliDB')->table('Amaster')
                 ->select('Amaster.Amas03', 'Gvahed.Gvah02', 'Akala.Akal02', 'Aanbar.Aanb02')
                 ->selectRaw('ROUND(ISNULL(SUM(CASE WHEN Ahhvl.Ahhv01 < 30 THEN Adhvl.Adhv05 END), 0) - ISNULL(SUM(CASE WHEN Ahhvl.Ahhv01 > 30 THEN Adhvl.Adhv05 END), 0), 3) as Mojodi')
@@ -80,7 +85,7 @@ class SendData implements ShouldQueue
             if ($response->failed()) {
                 $this->release(now()->addSeconds(30));
             } else if ($response->successful()) {
-                QueueRequest::where('QueueId', $this->queueId)->update([
+                $row->update([
                     'Sended' => 1,
                     'SendDate' => now()
                 ]);
