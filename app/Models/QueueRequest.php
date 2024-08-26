@@ -11,5 +11,5 @@ class QueueRequest extends Model
     public $timestamps = false;
     protected $primaryKey = 'QueueId';
 
-    protected $fillable = ['QueueId', 'CreateDate', 'SendDate', 'Amas03', 'Sended', 'TriggerType'];
+    protected $fillable = ['QueueId', 'CreateDate', 'SendDate', 'Amas03', 'OnQueue', 'Sended', 'TriggerType'];
 }
