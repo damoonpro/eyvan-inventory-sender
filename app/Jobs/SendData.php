@@ -80,7 +80,7 @@ class SendData implements ShouldQueue
             if ($response->failed()) {
                 $this->release(now()->addSeconds(30));
             } else if ($response->successful()) {
-                QueueRequest::whereQueueId($this->queueId)->update([
+                QueueRequest::where('QueueId', $this->queueId)->update([
                     'Sended' => 1,
                     'SendDate' => now()
                 ]);

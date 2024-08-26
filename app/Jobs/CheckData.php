@@ -32,15 +32,19 @@ class CheckData implements ShouldQueue
     public function handle(): void
     {
         $processedCodes = [];
-        $perPage = 200;
-        $page = 1;
+        $lastProcessedId = 0;
 
-        do {
+        while (true) {
             $requests = QueueRequest::select('QueueId', 'Amas03')
+                ->where('QueueId', '>', $lastProcessedId)
                 ->whereSended(0)
                 ->where('OnQueue', 0)
-                ->orderBy('Amas03')
-                ->simplePaginate($perPage, ['*'], 'page', $page);
+                ->limit(200)
+                ->get();
+
+            if ($requests->isEmpty()) {
+                break;
+            }
 
             foreach ($requests as $request) {
                 $code = $request->Amas03;
@@ -67,8 +71,8 @@ class CheckData implements ShouldQueue
                 $processedCodes[$code] = true;
             }
 
-            $page++;
-        } while ($requests->hasMorePages());
+            $lastProcessedId = $requests->last()->QueueId;
+        }
 
         $this->release(now()->addSeconds(5));
     }
