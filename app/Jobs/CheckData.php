@@ -38,7 +38,7 @@ class CheckData implements ShouldQueue
         do {
             $requests = QueueRequest::select('QueueId', 'Amas03')
                 ->whereSended(0)
-                ->whereOnQueue(0)
+                ->where('OnQueue', 0)
                 ->orderBy('Amas03')
                 ->simplePaginate($perPage, ['*'], 'page', $page);
 
@@ -55,7 +55,7 @@ class CheckData implements ShouldQueue
                             'OnQueue' => 1
                         ]);
 
-                        QueueRequest::whereAmas03($code)->whereOnQueue(0)->delete();
+                        QueueRequest::whereAmas03($code)->where('OnQueue', 0)->delete();
 
                         SendData::dispatch($code, $request->QueueId);
                     }, 3);

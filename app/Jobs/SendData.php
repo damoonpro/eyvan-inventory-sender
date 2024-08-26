@@ -85,7 +85,7 @@ class SendData implements ShouldQueue
                     'SendDate' => now()
                 ]);
 
-                QueueRequest::whereAmas03($this->code)->whereSended(0)->whereOnQueue(0)->delete();
+                QueueRequest::whereAmas03($this->code)->whereSended(0)->where('OnQueue', 0)->delete();
             }
         } catch (\Exception $e) {
             info("Error sending $this->queueId: " . $e->getMessage());
