@@ -16,7 +16,7 @@ class SendData implements ShouldQueue
     use Queueable;
 
     public $tries = 10;
-    public $timeout = 1000;
+    public $timeout = 180;
 
     /**
      * Create a new job instance.
