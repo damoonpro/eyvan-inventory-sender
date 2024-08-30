@@ -72,6 +72,11 @@ class CheckData implements ShouldQueue
             }
 
             $lastProcessedId = $requests->last()->QueueId;
+
+            if ($this->attempts() > 1000)
+                DB::table('jobs')->where('queue', 'default')->update([
+                    'attempts' => 1,
+                ]);
         }
 
         $this->release(now()->addSeconds(5));
