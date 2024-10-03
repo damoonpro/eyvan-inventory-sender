@@ -34,7 +34,7 @@ class CheckData implements ShouldQueue
             $this->updateLastProcessedId($requests->last()->QueueId);
         }
 
-        $this->release(now()->addSeconds(5));
+        self::dispatch()->delay(now()->addSeconds(5));
     }
 
     private function getRequests($lastProcessedId)
