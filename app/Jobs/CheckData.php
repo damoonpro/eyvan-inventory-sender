@@ -15,7 +15,6 @@ class CheckData implements ShouldQueue
 {
     use Queueable;
 
-    public $tries = 0;
     public $timeout = 300;
 
     /**
@@ -31,6 +30,14 @@ class CheckData implements ShouldQueue
      */
     public function handle(): void
     {
+        if ($this->attempts() > 100) {
+            DB::table('jobs')->where('queue', 'default')->update([
+                'attempts' => 1,
+            ]);
+
+            sleep(5);
+        }
+
         $processedCodes = [];
         $lastProcessedId = 0;
 
@@ -73,11 +80,6 @@ class CheckData implements ShouldQueue
 
             $lastProcessedId = $requests->last()->QueueId;
         }
-
-        if ($this->attempts() > 1000)
-            DB::table('jobs')->where('queue', 'default')->update([
-                'attempts' => 1,
-            ]);
 
         $this->release(now()->addSeconds(5));
     }
