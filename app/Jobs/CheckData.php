@@ -15,7 +15,7 @@ class CheckData implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    public $tries = 0;
+    public $tries = 1000;
     public $timeout = 300;
 
     private const CACHE_KEY = 'check_data_last_processed_id';
